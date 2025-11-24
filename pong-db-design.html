@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong 게임 프로젝트 - 데이터베이스 설계 문서</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 25px;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        .info {
+            background: #d1ecf1;
+            padding: 15px;
+            border-left: 4px solid #17a2b8;
+            margin: 20px 0;
+        }
+        hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 30px 0;
+        }
+        blockquote {
+            border-left: 4px solid #95a5a6;
+            margin: 20px 0;
+            padding-left: 20px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pong 게임 프로젝트 - 데이터베이스 설계 문서</h1>
+
+    <h2>프로젝트 요구사항</h2>
+
+    <h3>Major Modules</h3>
+    <ul>
+        <li>Use a framework to build the backend</li>
+        <li>Standard user management, authentication, users across tournaments</li>
+        <li>Implementing a remote authentication</li>
+        <li>Replace basic Pong with server-side Pong and implement an API</li>
+    </ul>
+
+    <h3>Minor Modules</h3>
+    <ul>
+        <li>Use a framework or a toolkit to build the frontend</li>
+        <li>Use a database for the backend (SQLite 필수)</li>
+        <li>User and game stats dashboards</li>
+        <li>Game customization options</li>
+        <li>Support on all devices</li>
+        <li>Server-Side Rendering (SSR) integration</li>
+    </ul>
+
+    <hr>
+
+    <h2>최종 ERD 설계 (4개 테이블)</h2>
+
+    <h3>1. users 테이블</h3>
+    <pre><code>id                  INTEGER PRIMARY KEY AUTOINCREMENT
+username            TEXT UNIQUE NOT NULL
+email               TEXT UNIQUE NOT NULL
+password_hash       TEXT                          -- 로컬 인증용
+oauth_provider      TEXT                          -- 'github', '42', 'google' 등
+oauth_id            TEXT                          -- OAuth 사용자 고유 ID
+avatar_url          TEXT
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+
+UNIQUE(oauth_provider, oauth_id)                 -- OAuth 중복 방지</code></pre>
+
+    <p><strong>역할:</strong></p>
+    <ul>
+        <li>표준 사용자 관리</li>
+        <li>로컬 인증 (username/password)</li>
+        <li>원격 OAuth 인증 (GitHub, 42, Google 등)</li>
+        <li>토너먼트 참가자 정보</li>
+    </ul>
+
+    <h3>2. games 테이블</h3>
+    <pre><code>id                  INTEGER PRIMARY KEY AUTOINCREMENT
+player1_id          INTEGER NOT NULL REFERENCES users(id)
+player2_id          INTEGER NOT NULL REFERENCES users(id)
+player1_score       INTEGER DEFAULT 0
+player2_score       INTEGER DEFAULT 0
+winner_id           INTEGER REFERENCES users(id)
+game_settings       TEXT                          -- JSON 형식 커스터마이징 옵션
+tournament_id       INTEGER REFERENCES tournaments(id)
+status              TEXT DEFAULT 'completed'
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+ended_at            DATETIME
+
+CREATE INDEX idx_games_player1 ON games(player1_id);
+CREATE INDEX idx_games_player2 ON games(player2_id);
+CREATE INDEX idx_games_tournament ON games(tournament_id);</code></pre>
+
+    <p><strong>역할:</strong></p>
+    <ul>
+        <li>게임 기록 저장 (최종 결과만)</li>
+        <li>1v1 게임 및 토너먼트 게임 모두 저장</li>
+        <li>게임 커스터마이징 설정 (game_settings JSON)</li>
+        <li>통계 대시보드용 데이터 소스</li>
+    </ul>
+
+    <p><strong>game_settings 예시:</strong></p>
+    <pre><code>{
+  "ball_speed": 1.5,
+  "paddle_size": "medium",
+  "max_score": 5,
+  "court_color": "#000000",
+  "paddle_color": "#FFFFFF"
+}</code></pre>
+
+    <h3>3. tournaments 테이블</h3>
+    <pre><code>id                  INTEGER PRIMARY KEY AUTOINCREMENT
+name                TEXT NOT NULL
+status              TEXT DEFAULT 'registration'   -- registration, in_progress, completed
+max_participants    INTEGER DEFAULT 8
+winner_id           INTEGER REFERENCES users(id)
+created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+started_at          DATETIME
+ended_at            DATETIME</code></pre>
+
+    <p><strong>역할:</strong></p>
+    <ul>
+        <li>토너먼트 정보 관리</li>
+        <li>토너먼트 상태 추적</li>
+        <li>우승자 기록</li>
+    </ul>
+
+    <p><strong>status 값:</strong></p>
+    <ul>
+        <li><code>registration</code>: 참가자 모집 중</li>
+        <li><code>in_progress</code>: 진행 중</li>
+        <li><code>completed</code>: 종료</li>
+    </ul>
+
+    <h3>4. tournament_participants 테이블</h3>
+    <pre><code>id                  INTEGER PRIMARY KEY AUTOINCREMENT
+tournament_id       INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE
+user_id             INTEGER NOT NULL REFERENCES users(id)
+eliminated          BOOLEAN DEFAULT 0
+joined_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+
+UNIQUE(tournament_id, user_id)                   -- 중복 참가 방지
+CREATE INDEX idx_participants_tournament ON tournament_participants(tournament_id);
+CREATE INDEX idx_participants_user ON tournament_participants(user_id);</code></pre>
+
+    <p><strong>역할:</strong></p>
+    <ul>
+        <li>토너먼트 참가자 목록</li>
+        <li>탈락 여부 추적</li>
+        <li>사용자별 토너먼트 참가 이력</li>
+    </ul>
+
+    <hr>
+
+    <h2>기술 스택 선택</h2>
+
+    <h3>데이터베이스: SQLite + Prisma ORM</h3>
+
+    <h4>SQLite를 사용하는 이유</h4>
+    <ul>
+        <li>과제 요구사항 (필수)</li>
+        <li>파일 기반으로 배포 간편</li>
+        <li>설정이 간단함</li>
+    </ul>
+
+    <h4>Prisma를 사용하는 이유</h4>
+
+    <p><strong>1. 타입 안전성</strong></p>
+    <pre><code>// ❌ Raw SQL - 오타 위험
+db.query('SELECT * FROM usres WHERE id = ?', [1]);  // usres 오타!
+
+// ✅ Prisma - 컴파일 타임 에러 체크
+const user = await prisma.user.findUnique({
+  where: { id: 1 }
+});</code></pre>
+
+    <p><strong>2. 마이그레이션 자동 관리</strong></p>
+    <pre><code>npx prisma migrate dev --name add_tournament
+# SQLite 파일 자동 생성 + 버전 관리</code></pre>
+
+    <p><strong>3. 복잡한 쿼리 간소화</strong></p>
+    <pre><code>// 토너먼트 참가자 목록 + 유저 정보
+const tournament = await prisma.tournament.findUnique({
+  where: { id: 1 },
+  include: {
+    participants: {
+      include: { user: true }
+    }
+  }
+});</code></pre>
+
+    <hr>
+
+    <h2>SQLite 동시성 문제 해결 방법</h2>
+
+    <h3>1. WAL 모드 활성화 (필수!)</h3>
+    <pre><code>import Database from 'better-sqlite3';
+
+const db = new Database('./prisma/dev.db');
+db.pragma('journal_mode = WAL');  // 동시 읽기 허용
+db.pragma('busy_timeout = 5000'); // 락 대기 시간 5초</code></pre>
+
+    <div class="info">
+        <strong>WAL (Write-Ahead Logging) 장점:</strong>
+        <ul>
+            <li>읽기 작업이 쓰기 작업을 차단하지 않음</li>
+            <li>동시성 성능 향상</li>
+            <li>데이터 무결성 보장</li>
+        </ul>
+    </div>
+
+    <h3>2. 실시간 게임 상태는 메모리에 보관</h3>
+    <pre><code>// ❌ 나쁜 예: 게임 상태를 매번 DB 저장
+setInterval(() => {
+  await prisma.gameState.update({
+    ball_x, ball_y, paddle1_y, paddle2_y
+  });
+}, 16); // 60fps → SQLite 과부하!
+
+// ✅ 좋은 예: 메모리에 보관, 종료 시만 저장
+const activeGames = new Map(); // 게임 진행 중 상태
+
+// 게임 종료 시에만 DB 저장
+await prisma.game.create({
+  data: {
+    player1_id: 1,
+    player2_id: 2,
+    player1_score: 5,
+    player2_score: 3,
+    winner_id: 1,
+    game_settings: JSON.stringify(settings)
+  }
+});</code></pre>
+
+    <div class="highlight">
+        <strong>실시간 게임 아키텍처:</strong>
+        <pre>WebSocket 연결
+    ↓
+서버 메모리 (게임 상태)
+    ├─ ball position
+    ├─ paddle positions
+    ├─ current score
+    └─ game physics
+    ↓
+게임 종료 시
+    ↓
+SQLite DB (최종 결과만 저장)</pre>
+    </div>
+
+    <hr>
+
+    <h2>Prisma 설정</h2>
+
+    <h3>1. 설치</h3>
+    <pre><code>npm install prisma @prisma/client better-sqlite3</code></pre>
+
+    <h3>2. 초기화</h3>
+    <pre><code>npx prisma init --datasource-provider sqlite</code></pre>
+
+    <h3>3. schema.prisma</h3>
+    <pre><code>datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique
+  email         String   @unique
+  passwordHash  String?
+  oauthProvider String?
+  oauthId       String?
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  gamesAsPlayer1 Game[] @relation("Player1")
+  gamesAsPlayer2 Game[] @relation("Player2")
+  wonGames       Game[] @relation("Winner")
+  tournaments    TournamentParticipant[]
+  wonTournaments Tournament[]
+
+  @@unique([oauthProvider, oauthId])
+}
+
+model Game {
+  id            Int       @id @default(autoincrement())
+  player1Id     Int
+  player2Id     Int
+  player1Score  Int       @default(0)
+  player2Score  Int       @default(0)
+  winnerId      Int?
+  gameSettings  String?   // JSON string
+  tournamentId  Int?
+  status        String    @default("completed")
+  createdAt     DateTime  @default(now())
+  endedAt       DateTime?
+
+  player1    User        @relation("Player1", fields: [player1Id], references: [id])
+  player2    User        @relation("Player2", fields: [player2Id], references: [id])
+  winner     User?       @relation("Winner", fields: [winnerId], references: [id])
+  tournament Tournament? @relation(fields: [tournamentId], references: [id])
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([tournamentId])
+}
+
+model Tournament {
+  id              Int       @id @default(autoincrement())
+  name            String
+  status          String    @default("registration")
+  maxParticipants Int       @default(8)
+  winnerId        Int?
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  endedAt         DateTime?
+
+  winner       User?                   @relation(fields: [winnerId], references: [id])
+  participants TournamentParticipant[]
+  games        Game[]
+}
+
+model TournamentParticipant {
+  id           Int      @id @default(autoincrement())
+  tournamentId Int
+  userId       Int
+  eliminated   Boolean  @default(false)
+  joinedAt     DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
+}</code></pre>
+
+    <h3>4. 마이그레이션 실행</h3>
+    <pre><code>npx prisma migrate dev --name init</code></pre>
+
+    <h3>5. Prisma Studio로 DB 확인</h3>
+    <pre><code>npx prisma studio
+# http://localhost:5555 에서 GUI로 DB 확인 가능</code></pre>
+
+    <hr>
+
+    <h2>주요 쿼리 예시</h2>
+
+    <h3>사용자 통계 대시보드</h3>
+    <pre><code>// 특정 유저의 게임 통계
+async function getUserStats(userId: number) {
+  const games = await prisma.game.findMany({
+    where: {
+      OR: [
+        { player1Id: userId },
+        { player2Id: userId }
+      ]
+    }
+  });
+
+  const totalGames = games.length;
+  const wins = games.filter(g => g.winnerId === userId).length;
+  const losses = totalGames - wins;
+  const winRate = totalGames > 0 ? (wins / totalGames) * 100 : 0;
+
+  const totalScore = games.reduce((sum, game) => {
+    return sum + (game.player1Id === userId ? game.player1Score : game.player2Score);
+  }, 0);
+
+  const avgScore = totalGames > 0 ? totalScore / totalGames : 0;
+
+  return {
+    totalGames,
+    wins,
+    losses,
+    winRate: winRate.toFixed(2),
+    avgScore: avgScore.toFixed(2)
+  };
+}</code></pre>
+
+    <h3>토너먼트 참가자 목록</h3>
+    <pre><code>const tournament = await prisma.tournament.findUnique({
+  where: { id: tournamentId },
+  include: {
+    participants: {
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true
+          }
+        }
+      },
+      where: {
+        eliminated: false
+      }
+    }
+  }
+});</code></pre>
+
+    <h3>OAuth 로그인 처리</h3>
+    <pre><code>async function loginWithOAuth(provider: string, oauthId: string, userData: any) {
+  // 기존 유저 찾기
+  let user = await prisma.user.findUnique({
+    where: {
+      oauthProvider_oauthId: {
+        oauthProvider: provider,
+        oauthId: oauthId
+      }
+    }
+  });
+
+  // 없으면 신규 생성
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        username: userData.username,
+        email: userData.email,
+        oauthProvider: provider,
+        oauthId: oauthId,
+        avatarUrl: userData.avatarUrl,
+        passwordHash: null  // OAuth 유저는 비밀번호 없음
+      }
+    });
+  }
+
+  return user;
+}</code></pre>
+
+    <hr>
+
+    <h2>API 엔드포인트 설계 (Server-Side Pong)</h2>
+
+    <h3>REST API</h3>
+    <pre><code>// 게임 관련
+POST   /api/games              // 새 게임 생성
+GET    /api/games/:id          // 게임 정보 조회
+GET    /api/games              // 게임 목록 (필터/페이징)
+GET    /api/users/:id/games    // 특정 유저 게임 기록
+
+// 토너먼트 관련
+POST   /api/tournaments        // 토너먼트 생성
+GET    /api/tournaments        // 토너먼트 목록
+GET    /api/tournaments/:id    // 토너먼트 상세
+POST   /api/tournaments/:id/join     // 토너먼트 참가
+POST   /api/tournaments/:id/start    // 토너먼트 시작
+
+// 인증 관련
+POST   /api/auth/register      // 로컬 회원가입
+POST   /api/auth/login         // 로컬 로그인
+GET    /api/auth/oauth/:provider     // OAuth 로그인 시작
+GET    /api/auth/oauth/:provider/callback  // OAuth 콜백
+
+// 통계 관련
+GET    /api/users/:id/stats    // 유저 통계
+GET    /api/leaderboard         // 리더보드</code></pre>
+
+    <h3>WebSocket (실시간 게임)</h3>
+    <pre><code>// 연결
+WS /api/game/:gameId/play
+
+// 메시지 형식
+{
+  type: 'paddle_move',
+  data: { y: 250 }
+}
+
+{
+  type: 'game_state',
+  data: {
+    ball: { x: 400, y: 300, vx: 5, vy: 3 },
+    paddle1: { y: 250 },
+    paddle2: { y: 280 },
+    score: { player1: 2, player2: 1 }
+  }
+}
+
+{
+  type: 'game_end',
+  data: {
+    winnerId: 1,
+    finalScore: { player1: 5, player2: 3 }
+  }
+}</code></pre>
+
+    <hr>
+
+    <h2>핵심 정리</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>항목</th>
+                <th>선택</th>
+                <th>이유</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>DB</strong></td>
+                <td>SQLite</td>
+                <td>과제 요구사항 (필수)</td>
+            </tr>
+            <tr>
+                <td><strong>ORM</strong></td>
+                <td>Prisma</td>
+                <td>타입 안전성 + 생산성</td>
+            </tr>
+            <tr>
+                <td><strong>동시성</strong></td>
+                <td>WAL 모드</td>
+                <td>읽기/쓰기 성능 향상</td>
+            </tr>
+            <tr>
+                <td><strong>게임 상태</strong></td>
+                <td>메모리 저장</td>
+                <td>DB 부하 최소화</td>
+            </tr>
+            <tr>
+                <td><strong>테이블 수</strong></td>
+                <td>4개</td>
+                <td>최소 필수 구성</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>실시간 게임 아키텍처</h3>
+    <pre>클라이언트 ←→ WebSocket ←→ 서버 메모리 (게임 상태)
+                              ↓ (게임 종료 시)
+                           SQLite DB (최종 결과)</pre>
+
+    <h3>4개 테이블 역할</h3>
+    <ol>
+        <li><strong>users</strong>: 인증 + 사용자 관리 (로컬 + OAuth)</li>
+        <li><strong>games</strong>: 게임 기록 + 통계 소스</li>
+        <li><strong>tournaments</strong>: 토너먼트 정보</li>
+        <li><strong>tournament_participants</strong>: 토너먼트 참가 관리</li>
+    </ol>
+
+    <div class="highlight">
+        <p><strong>이 설계로 모든 요구사항을 충족하면서도 간결하고 확장 가능한 구조를 만들 수 있습니다!</strong> 🎯</p>
+    </div>
+</body>
+</html>
