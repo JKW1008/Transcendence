@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { GameEngine } from '../game/GameEngine';
+import { GameEngine, GameSettings } from '../game/GameEngine';
 import { GameConfig, GameState, Orientation } from '../types';
 
 const MOBILE_BREAKPOINT = 768;
 
 const getResponsiveConfig = (orientation: Orientation): GameConfig => {
+  // Safe defaults for SSR
+  const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
   if (orientation === 'vertical') {
-    const width = Math.min(window.innerWidth - 32, 400);
-    const height = Math.min(window.innerHeight - 200, width * 1.5);
+    const width = Math.min(windowWidth - 32, 400);
+    const height = Math.min(windowHeight - 200, width * 1.5);
 
     return {
       canvasWidth: width,
@@ -21,8 +25,8 @@ const getResponsiveConfig = (orientation: Orientation): GameConfig => {
       orientation,
     };
   } else {
-    const width = Math.min(window.innerWidth - 64, 1200);
-    const height = Math.min(window.innerHeight - 200, width * 0.6);
+    const width = Math.min(windowWidth - 64, 1200);
+    const height = Math.min(windowHeight - 200, width * 0.6);
 
     return {
       canvasWidth: width,
@@ -40,10 +44,12 @@ const getResponsiveConfig = (orientation: Orientation): GameConfig => {
 
 interface UseGameLoopOptions {
   keysPressed: React.RefObject<Set<string>>;
+  settings?: Partial<GameSettings>;
 }
 
-export function useGameLoop({ keysPressed }: UseGameLoopOptions) {
+export function useGameLoop({ keysPressed, settings }: UseGameLoopOptions) {
   const getOrientation = useCallback((): Orientation => {
+    if (typeof window === 'undefined') return 'horizontal';
     return window.innerWidth < MOBILE_BREAKPOINT ? 'vertical' : 'horizontal';
   }, []);
 
@@ -51,7 +57,7 @@ export function useGameLoop({ keysPressed }: UseGameLoopOptions) {
   const [gameConfig, setGameConfig] = useState<GameConfig>(() =>
     getResponsiveConfig(getOrientation())
   );
-  const gameEngineRef = useRef<GameEngine>(new GameEngine(gameConfig));
+  const gameEngineRef = useRef<GameEngine>(new GameEngine(gameConfig, settings));
   const [gameState, setGameState] = useState<GameState>(gameEngineRef.current.state);
   const animationFrameRef = useRef<number>();
 
@@ -63,13 +69,19 @@ export function useGameLoop({ keysPressed }: UseGameLoopOptions) {
 
       setOrientation(newOrientation);
       setGameConfig(newConfig);
-      gameEngineRef.current = new GameEngine(newConfig);
+      gameEngineRef.current = new GameEngine(newConfig, settings);
       setGameState({ ...gameEngineRef.current.state });
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [getOrientation]);
+  }, [getOrientation, settings]);
+
+  // Recreate GameEngine when settings change
+  useEffect(() => {
+    gameEngineRef.current = new GameEngine(gameConfig, settings);
+    setGameState({ ...gameEngineRef.current.state });
+  }, [settings, gameConfig]);
 
   useEffect(() => {
     const gameLoop = () => {

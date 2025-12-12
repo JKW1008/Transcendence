@@ -27,3 +27,10 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+/src/generated/prisma
+
+# Prisma
+dev.db
+dev.db-journal
+prisma/migrations

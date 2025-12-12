@@ -1,12 +1,26 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { useGameLoop } from '../../hooks/useGameLoop';
 import { useKeyboard } from '../../hooks/useKeyboard';
-import { GameCanvas } from './GameCanvas';
+import { LocalGameCanvas } from './LocalGameCanvas';
+import { GameSettings } from './GameSettings';
+import { GameSettings as GameSettingsType } from '../../game/GameEngine';
 
 export function Game() {
   const { keysPressed } = useKeyboard();
+  const [settings, setSettings] = useState<Partial<GameSettingsType>>({
+    ballSpeed: 5,
+    paddleSize: 100,
+    winScore: 5,
+    ballSize: 10,
+    ballAcceleration: 1.05,
+    paddleSpeed: 10,
+    theme: 'classic',
+  });
+  const [showSettings, setShowSettings] = useState(false);
+
   const { gameState, startGame, pauseGame, resetGame, movePaddleByDelta, config, orientation } = useGameLoop({
     keysPressed,
+    settings,
   });
 
   const isVertical = orientation === 'vertical';
@@ -53,13 +67,31 @@ export function Game() {
     lastTouchRef.current = null;
   }, []);
 
+  const handleSettingsChange = (newSettings: Partial<GameSettingsType>) => {
+    setSettings(newSettings);
+  };
+
+  const handleSettingsClose = () => {
+    setShowSettings(false);
+    resetGame();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4 sm:p-8">
       <div className="flex flex-col items-center gap-4 sm:gap-8 w-full max-w-7xl">
-        {/* Title */}
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white mb-2 sm:mb-4">
-          PONG
-        </h1>
+        {/* Title and Settings Button */}
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white mb-2 sm:mb-4">
+            PONG
+          </h1>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm"
+            title="Game Settings"
+          >
+            ⚙️ Settings
+          </button>
+        </div>
 
         {/* Game Canvas */}
         <div
@@ -68,7 +100,7 @@ export function Game() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <GameCanvas
+          <LocalGameCanvas
             gameState={gameState}
             width={config.canvasWidth}
             height={config.canvasHeight}
@@ -165,6 +197,15 @@ export function Game() {
               Reset
             </button>
           </div>
+        )}
+
+        {/* Settings Modal */}
+        {showSettings && (
+          <GameSettings
+            settings={settings}
+            onChange={handleSettingsChange}
+            onClose={handleSettingsClose}
+          />
         )}
       </div>
     </div>

@@ -21,6 +21,7 @@ export interface Paddle {
 }
 
 export type Orientation = 'horizontal' | 'vertical';
+export type Theme = 'classic' | 'neon' | 'retro';
 
 export interface GameState {
   ball: Ball;
@@ -33,6 +34,7 @@ export interface GameState {
   isPlaying: boolean;
   winner: 'player1' | 'player2' | null;
   orientation: Orientation;
+  theme?: Theme; // theme 속성 추가 (선택적)
 }
 
 export interface GameConfig {

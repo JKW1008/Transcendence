@@ -1,96 +1,125 @@
+"use client";
 import { useEffect, useRef } from 'react';
-import { GameState } from '../../types';
 
-interface GameCanvasProps {
-  gameState: GameState;
-  width: number;
-  height: number;
+interface OnlineGameCanvasProps {
+  gameState: {
+    canvas?: {
+      width: number;
+      height: number;
+    };
+    ball: {
+      x: number;
+      y: number;
+      radius: number;
+      velocityX: number;
+      velocityY: number;
+      speed: number;
+    };
+    paddle1: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      score: number;
+    };
+    paddle2: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      score: number;
+    };
+    winningScore: number;
+    winner: 'player1' | 'player2' | null;
+    isPlaying: boolean;
+  };
+  playerNumber?: 1 | 2;
 }
 
-export function GameCanvas({ gameState, width, height }: GameCanvasProps) {
+export function GameCanvas({ gameState, playerNumber }: OnlineGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isVertical = gameState.orientation === 'vertical';
+
+  // canvas 정보가 없으면 렌더하지 않음 (SSR-safe)
+  if (!gameState.canvas) {
+    return null;
+  }
+
+  const { width, height } = gameState.canvas;
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, width, height);
 
-    // Draw center line based on orientation
+    // center line
     ctx.strokeStyle = '#444';
     ctx.setLineDash([10, 10]);
     ctx.beginPath();
-    if (isVertical) {
-      // Horizontal center line for vertical mode
-      ctx.moveTo(0, height / 2);
-      ctx.lineTo(width, height / 2);
-    } else {
-      // Vertical center line for horizontal mode
-      ctx.moveTo(width / 2, 0);
-      ctx.lineTo(width / 2, height);
-    }
+    ctx.moveTo(width / 2, 0);
+    ctx.lineTo(width / 2, height);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw ball
+    // ball
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(
-      gameState.ball.position.x,
-      gameState.ball.position.y,
+      gameState.ball.x,
+      gameState.ball.y,
       gameState.ball.radius,
       0,
       Math.PI * 2
     );
     ctx.fill();
 
-    // Draw paddle 1 (left in horizontal, bottom in vertical)
-    ctx.fillStyle = '#fff';
+    // paddle1
+    ctx.fillStyle = playerNumber === 1 ? '#4ade80' : '#fff';
     ctx.fillRect(
-      gameState.paddle1.position.x,
-      gameState.paddle1.position.y,
-      gameState.paddle1.size.width,
-      gameState.paddle1.size.height
+      gameState.paddle1.x,
+      gameState.paddle1.y,
+      gameState.paddle1.width,
+      gameState.paddle1.height
     );
 
-    // Draw paddle 2 (right in horizontal, top in vertical)
+    // paddle2
+    ctx.fillStyle = playerNumber === 2 ? '#4ade80' : '#fff';
     ctx.fillRect(
-      gameState.paddle2.position.x,
-      gameState.paddle2.position.y,
-      gameState.paddle2.size.width,
-      gameState.paddle2.size.height
+      gameState.paddle2.x,
+      gameState.paddle2.y,
+      gameState.paddle2.width,
+      gameState.paddle2.height
     );
 
-    // Draw scores based on orientation
-    const fontSize = isVertical ? Math.max(24, width * 0.08) : 48;
-    ctx.font = `${fontSize}px monospace`;
+    // scores
+    ctx.font = '48px monospace';
     ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(String(gameState.paddle1.score), width / 4, 60);
+    ctx.fillText(String(gameState.paddle2.score), (width * 3) / 4, 60);
 
-    if (isVertical) {
-      // Vertical mode: Player 1 score on bottom half, Player 2 on top half
-      ctx.fillText(gameState.score.player2.toString(), width / 2, height / 4);
-      ctx.fillText(gameState.score.player1.toString(), width / 2, (height * 3) / 4);
-    } else {
-      // Horizontal mode: Player 1 on left, Player 2 on right
-      ctx.fillText(gameState.score.player1.toString(), width / 4, 60);
-      ctx.fillText(gameState.score.player2.toString(), (width * 3) / 4, 60);
+    // winner
+    if (gameState.winner) {
+      ctx.font = 'bold 32px monospace';
+      ctx.fillStyle = gameState.winner === 'player1' ? '#4ade80' : '#f87171';
+      ctx.fillText(
+        gameState.winner === 'player1' ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!',
+        width / 2,
+        height / 2
+      );
     }
 
-  }, [gameState, width, height, isVertical]);
+  }, [gameState, width, height, playerNumber]);
 
   return (
     <canvas
       ref={canvasRef}
       width={width}
       height={height}
-      className="border-2 sm:border-4 border-gray-700 rounded-lg shadow-2xl w-full h-auto"
-      style={{ maxWidth: `${width}px`, maxHeight: `${height}px` }}
+      className="border-4 border-gray-700 rounded-lg shadow-2xl bg-black"
+      style={{ maxWidth: '100%', height: 'auto' }}
     />
   );
 }

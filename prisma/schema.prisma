@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and profiles
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  gamesAsPlayer1 Game[] @relation("Player1Games")
+  gamesAsPlayer2 Game[] @relation("Player2Games")
+  tournaments    TournamentPlayer[]
+}
+
+// Game model for match history
+model Game {
+  id          String   @id @default(uuid())
+  player1Id   String
+  player2Id   String
+  player1     User     @relation("Player1Games", fields: [player1Id], references: [id])
+  player2     User     @relation("Player2Games", fields: [player2Id], references: [id])
+  score1      Int      @default(0)
+  score2      Int      @default(0)
+  winnerId    String?
+  status      String   @default("pending") // pending, playing, finished
+  createdAt   DateTime @default(now())
+  finishedAt  DateTime?
+
+  // Game settings
+  ballSpeed   Int      @default(5)
+  paddleSize  Int      @default(100)
+  winScore    Int      @default(5)
+
+  tournamentId String?
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id])
+}
+
+// Tournament model
+model Tournament {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("pending") // pending, ongoing, finished
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+
+  players   TournamentPlayer[]
+  games     Game[]
+}
+
+model TournamentPlayer {
+  id           String     @id @default(uuid())
+  tournamentId String
+  userId       String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+  position     Int?
+
+  @@unique([tournamentId, userId])
+}

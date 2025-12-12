@@ -16,7 +16,13 @@ export function Home() {
             to="/game"
             className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors text-lg"
           >
-            Play Now
+            Local Game
+          </Link>
+          <Link
+            to="/online"
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-lg"
+          >
+            Online Match
           </Link>
           <Link
             to="/tournament"
