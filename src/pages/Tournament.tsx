@@ -4,7 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import { OnlineGameCanvas } from '../components/Game/OnlineGameCanvas';
 import { ServerGameState } from '../hooks/useSocket';
 
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
 interface TournamentInfo {
   tournamentId: string;

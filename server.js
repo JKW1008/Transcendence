@@ -46,11 +46,13 @@ async function createServer() {
   const usersRouter = (await import('./src/api/routes/users.js')).default;
   const gamesRouter = (await import('./src/api/routes/games.js')).default;
   const leaderboardRouter = (await import('./src/api/routes/leaderboard.js')).default;
+  const friendsRouter = (await import('./src/api/routes/friends.js')).default;
 
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/games', gamesRouter);
   app.use('/api/leaderboard', leaderboardRouter);
+  app.use('/api/friends', friendsRouter);
 
   let vite;
   if (!isProduction) {
@@ -179,9 +181,10 @@ async function createServer() {
     });
   });
 
-  httpServer.listen(port, () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Server running at http://localhost:${port}`);
     console.log(`🎮 WebSocket server ready for online multiplayer`);
+    console.log(`📡 Server accessible from external computers at http://<your-ip>:${port}`);
   });
 }
 

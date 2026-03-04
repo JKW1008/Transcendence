@@ -27,6 +27,8 @@ model User {
   gamesAsPlayer1 Game[] @relation("Player1Games")
   gamesAsPlayer2 Game[] @relation("Player2Games")
   tournaments    TournamentPlayer[]
+  friendships    Friendship[] @relation("UserFriendships")
+  friendOf       Friendship[] @relation("FriendFriendships")
 }
 
 // Game model for match history
@@ -73,4 +75,18 @@ model TournamentPlayer {
   position     Int?
 
   @@unique([tournamentId, userId])
+}
+
+// Friendship model for friends system
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
+  status    String   @default("pending") // pending, accepted, blocked
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UserFriendships", fields: [userId], references: [id])
+  friend    User     @relation("FriendFriendships", fields: [friendId], references: [id])
+
+  @@unique([userId, friendId])
 }

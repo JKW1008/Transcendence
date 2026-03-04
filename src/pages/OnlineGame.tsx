@@ -4,7 +4,7 @@ import { useSocket } from '../hooks/useSocket';
 import { OnlineGameCanvas } from '../components/Game/OnlineGameCanvas';
 
 // 환경 변수 가져오기 (Vite 방식)
-const SOCKET_URL =  'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 console.log('🌐 Socket URL:', SOCKET_URL);
 
 export function OnlineGame() {
